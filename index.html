@@ -1,0 +1,37 @@
+<html>
+<head>
+    <style type="text/css">
+        .pagebody {
+            background-color: black;
+            background-repeat: repeat;
+        }
+        .mainGame {
+            position: relative;
+            margin-left: auto;
+            margin-right: auto;
+            padding-top: 10px;
+            width: 1000px;
+            min-height: 800px;
+            background-color: black;
+            background-repeat: repeat;
+            top: 0px;
+            -moz-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+            -o-user-user-select: none;
+            cursor: default;
+        }
+    </style>
+    <script src="lib/jquery.min.js"></script>
+    <title>Mosaic</title>
+</head>
+<body class="pagebody">
+<div class="js-mainGame js-mouseContainer mainGame">
+    <div class="js-gameContent">
+        <canvas class="js-canvas" width="1000" height="600" style="background-color: #FFF;"></canvas>
+    </div>
+</div>
+</body>
+<script src="draw.js"></script>
+<script src="main.js"></script>
+</html>
