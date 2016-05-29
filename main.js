@@ -200,6 +200,7 @@ function onClickLegalPosition(legalPosition) {
             placeTileOnBoard(selectedTile, legalPosition.boardTileX, legalPosition.boardTileY);
             selectedTile = null;
             legalPositions = [];
+            legalPositionsWithRotation = [];
             turn ^= 1;
             drawAllTiles(context, allTiles);
             return;
