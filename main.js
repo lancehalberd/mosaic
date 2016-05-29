@@ -25,7 +25,14 @@ var highlightColors = [
 var turn = 0;
 var sampleTile = [0, 1, 0, 1];
 
-var board = {'left': 100, 'top': 0, 'translateX': 0, 'translateY': 0, 'width': 800, 'height': 600, 'hash': {}};
+var board = {'left': 100, 'top': 0,
+            // Dimensions of the board.
+            'width': 800, 'height': 600, 'hash': {},
+            // Current values to translate the pieces on the board by
+            'translateX': 0, 'translateY': 0,
+            // Values the translate values are easing towards
+            'targetTranslateX': 0, 'targetTranslateY': 0
+};
 
 function makeTile(colors) {
     return {
@@ -98,18 +105,8 @@ function centerBoard() {
         top = Math.min(top, tile.y);
         bottom = Math.max(bottom, tile.y + tile.size);
     }
-    console.log([left, right, top, bottom]);
-    console.log(board.left + board.width / 2);
-    console.log(board.left + board.width / 2);
-    board.translateX -= (right + left) / 2 - (board.left + board.width / 2);
-    board.translateY -= (bottom + top) / 2 - (board.top + board.height / 2);
-    for (var i = 0; i < tilesOnBoard.length; i++) {
-        var tile = tilesOnBoard[i];
-        var coords = getTopLeftBoardTileCoords(tile.boardTileX, tile.boardTileY);
-        console.log(coords);
-        tile.x = coords.x;
-        tile.y = coords.y;
-    }
+    board.targetTranslateX = board.translateX - (right + left) / 2 + (board.left + board.width / 2);
+    board.targetTranslateY = board.translateY - (bottom + top) / 2 + (board.top + board.height / 2);
 }
 
 function pointInTile(tile, x, y) {
@@ -213,7 +210,6 @@ function onClickLegalPosition(legalPosition) {
     console.log(legalPosition);
     console.log(selectedTile);
 }
-
 function findLegalPositions(tile, rotatePiece) {
     var candidateSpaces = {}
     for (var i = 0; i < tilesOnBoard.length; i++) {
@@ -282,3 +278,26 @@ function tileColorsMatchConstraintColors(tileColors, colorConstraints) {
     }
     return true;
 }
+
+function gameLoop() {
+    if (board.translateX !== board.targetTranslateX || board.translateY !== board.targetTranslateY) {
+        board.translateX = (board.translateX * 3 + board.targetTranslateX) / 4;
+        board.translateY = (board.translateY * 3 + board.targetTranslateY) / 4;
+        if (Math.abs(board.translateX - board.targetTranslateX) < 1) {
+            board.translateX = board.targetTranslateX;
+        }
+        if (Math.abs(board.translateY - board.targetTranslateY) < 1) {
+            board.translateY = board.targetTranslateY;
+        }
+        for (var i = 0; i < tilesOnBoard.length; i++) {
+            var tile = tilesOnBoard[i];
+            var coords = getTopLeftBoardTileCoords(tile.boardTileX, tile.boardTileY);
+            tile.x = coords.x;
+            tile.y = coords.y;
+        }
+        drawAllTiles(context, allTiles);
+        drawLegalMoves(context, legalPositions, legalPositionsWithRotation);
+    }
+}
+
+setInterval(gameLoop, 30);
