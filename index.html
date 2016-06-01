@@ -5,6 +5,19 @@
             background-color: black;
             background-repeat: repeat;
         }
+        .score {
+            color: white;
+        }
+        .score-0 {
+        	float: left;
+        	text-align: left;
+        	color: #CCFFCC;
+        }
+        .score-1 {
+        	float: right;
+        	text-align: right;
+        	color: #CCCCFF;
+        }
         .mainGame {
             position: relative;
             margin-left: auto;
@@ -27,12 +40,21 @@
 </head>
 <body class="pagebody">
 <div class="js-mainGame js-mouseContainer mainGame">
+	<div class="scores">
+	<span class="score-0">
+		no score
+		</span>
+	<span class="score-1">
+		no score
+		</span>
+	</div>
     <div class="js-gameContent">
         <canvas class="js-canvas" width="1000" height="600" style="background-color: #FFF;"></canvas>
     </div>
-        Save game <button id="save" onclick="saveGame();">save game</button><br>
-        Load game <button id="load" onclick="loadGame();">load game</button><br>
-    
+    <div class="save-load">
+        <button id="save" onclick="saveGame();">save game</button><br>
+        <button id="load" onclick="loadGame();">load game</button><br>
+    </div>
 </div>
 </body>
     <script type="text/javascript" src="lib/jquery.min.js"></script>

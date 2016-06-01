@@ -137,12 +137,7 @@ function placeTileOnBoard(tile, boardTileX, boardTileY) {
     tile.x = coords.x;
     tile.y = coords.y;
     game.board.tilesPlaced ++;
-    console.log('placeTileOnBoard');
-    console.log(game);
-    if(game.board.tilesPlaced === game.board.totalTilesInGame) {
-    	var score = graphAndScore(game.allTiles);
-    	consol.log(score);
-    }
+    conditionallyScoreGame();
 }
 
 function removeTileFromContainer(tile) {
@@ -365,9 +360,15 @@ function loadGame() {
 	}
 	console.log(game);
 	drawAllTiles(context, game.allTiles);
-    if(game.board.tilesPlaced === game.board.totalTilesInGame) {
+    conditionallyScoreGame();
+
+}
+
+function conditionallyScoreGame() {
+	if(game.board.tilesPlaced === game.board.totalTilesInGame) {
     	var score = graphAndScore(game.allTiles);
     	console.log(score);
+    	$('.score-0').html(score[0]);
+    	$('.score-1').html(score[1]);
     }
-
 }
