@@ -13,6 +13,8 @@ function drawTile(context, tile) {
         context.fillStyle = colors[tile.colors[i]];
         context.fill();
         context.stroke();
+//        context.font = "12px Arial";
+//        context.fillText(tile.id,10,50);
     }
 }
 
@@ -24,13 +26,14 @@ function drawAllTiles(context, allTiles) {
     for (var i = 0; i < allTiles.length; i++) {
         var tile = allTiles[i]
         context.save();
-        context.globalAlpha = tile.container === hands[turn ^ 1] ? .3 : 1;
+        var tileIsInInactiveHand = tile.container.type === "hand" && tile.container.id !== game.turn;
+        context.globalAlpha = tileIsInInactiveHand ? .3 : 1;
         drawTile(context, tile);
         context.restore();
         if (tile === selectedTile) {
             context.save();
             context.lineWidth = 3;
-            context.strokeStyle = highlightColors[turn];
+            context.strokeStyle = highlightColors[game.turn];
             context.beginPath();
             context.rect(tile.x, tile.y, tile.size, tile.size);
             context.stroke();
@@ -42,18 +45,18 @@ function drawAllTiles(context, allTiles) {
 function drawLegalMoves(context, legalPositions, legalPositionsWithRotation) {
     context.save();
     context.beginPath();
-    context.fillStyle = highlightColors[turn];
-    context.strokeStyle = highlightColors[turn];
+    context.fillStyle = highlightColors[game.turn];
+    context.strokeStyle = highlightColors[game.turn];
     context.lineWidth = 3;
     context.globalAlpha = .8;
     for (var i = 0; i < legalPositionsWithRotation.length; i++) {
         var tileCoords = getTopLeftBoardTileCoords(legalPositionsWithRotation[i].boardTileX, legalPositionsWithRotation[i].boardTileY);
-        context.rect(tileCoords.x, tileCoords.y, tileSize, tileSize);
+        context.rect(tileCoords.x, tileCoords.y, game.tileSize, game.tileSize);
         context.stroke();
     }
     for (var i = 0; i < legalPositions.length; i++) {
         var tileCoords = getTopLeftBoardTileCoords(legalPositions[i].boardTileX, legalPositions[i].boardTileY);
-        context.fillRect(tileCoords.x, tileCoords.y, tileSize, tileSize);
+        context.fillRect(tileCoords.x, tileCoords.y, game.tileSize, game.tileSize);
     }
     context.restore();
 }

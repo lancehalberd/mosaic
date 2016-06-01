@@ -3,7 +3,7 @@
 var $canvas = $('.js-canvas');
 var canvasWidth = $canvas.width();
 var canvasHeight = $canvas.height();
-var tileSize = 100;
+
 var context = $canvas[0].getContext('2d');
 /*context.beginPath();
 context.moveTo(0, 0);
@@ -22,27 +22,32 @@ var highlightColors = [
     '#CCFFCC',
     '#CCCCFF'
 ];
-var turn = 0;
+
 var sampleTile = [0, 1, 0, 1];
 
-var board = {'left': 100, 'top': 0,
+game.board = {'left': 100, 'top': 0,
             // Dimensions of the board.
             'width': 800, 'height': 600, 'hash': {},
             // Current values to translate the pieces on the board by
             'translateX': 0, 'translateY': 0,
             // Values the translate values are easing towards
-            'targetTranslateX': 0, 'targetTranslateY': 0
+            'targetTranslateX': 0, 'targetTranslateY': 0,
+            'tilesPlaced': 0, 'totalTilesInGame': 16
 };
 
+var tileCounter = 0;
+
 function makeTile(colors) {
+	tileCounter++;
     return {
         // intrinsic properties
+    	'id': tileCounter,
         'colors': colors,
         'boardTileX': 0, 'boardTileY': 0,
         'container': null,
         // display properties
         'x': 0, 'y': 0,
-        'size': tileSize
+        'size': game.tileSize
     };
 }
 
@@ -56,16 +61,16 @@ function ifdefor(value, defaultValue) {
     return null;
 }
 
-var hands =[
+game.hands =[
     [[0,0,0,0], [1,1,1,1], [1,0,0,0], [0,1,1,1], [1,1,0,0], [0,0,1,1], [1,0,1,0], [0,1,0,1]],
     [[0,0,0,0], [1,1,1,1], [1,0,0,0], [0,1,1,1], [1,1,0,0], [0,0,1,1], [1,0,1,0], [0,1,0,1]]
 ];
-var tilesOnBoard = [];
+game.tilesOnBoard = [];
 
-hands[0] = hands[0].map(makeTile);
-hands[1] = hands[1].map(makeTile);
+game.hands[0] = game.hands[0].map(makeTile);
+game.hands[1] = game.hands[1].map(makeTile);
 
-var allTiles = hands[0].concat(hands[1]);
+game.allTiles = game.hands[0].concat(game.hands[1]);
 
 function rotateRight(tileColors) {
     var newTileColors = tileColors.slice();
@@ -83,30 +88,30 @@ function arrMod(array, offset) {
 }
 
 
-function initializeHand(context, hand, x, y, tileSize, padding) {
+function initializeHand(context, hand, handID, x, y, tileSize, padding) {
     for (var i = 0; i < hand.length; i++) {
         hand[i].size = tileSize;
-        hand[i].container = hand;
+        hand[i].container = {"type": "hand", "id": handID};
         hand[i].x = x;
         hand[i].y = y + i * (hand[i].size + padding);
     }
 }
 
 function centerBoard() {
-    if (tilesOnBoard.length === 0) {
-        board.translateX = board.translateY = 0;
+    if (game.tilesOnBoard.length === 0) {
+        game.board.translateX = game.board.translateY = 0;
         return;
     }
     var left = canvasWidth, right = 0, top = canvasHeight, bottom = 0;
-    for (var i = 0; i < tilesOnBoard.length; i++) {
-        var tile = tilesOnBoard[i];
+    for (var i = 0; i < game.tilesOnBoard.length; i++) {
+        var tile = game.tilesOnBoard[i];
         left = Math.min(left, tile.x);
         right = Math.max(right, tile.x + tile.size);
         top = Math.min(top, tile.y);
         bottom = Math.max(bottom, tile.y + tile.size);
     }
-    board.targetTranslateX = board.translateX - (right + left) / 2 + (board.left + board.width / 2);
-    board.targetTranslateY = board.translateY - (bottom + top) / 2 + (board.top + board.height / 2);
+    game.board.targetTranslateX = game.board.translateX - (right + left) / 2 + (game.board.left + game.board.width / 2);
+    game.board.targetTranslateY = game.board.translateY - (bottom + top) / 2 + (game.board.top + game.board.height / 2);
 }
 
 function pointInTile(tile, x, y) {
@@ -115,22 +120,43 @@ function pointInTile(tile, x, y) {
 
 function pointInBoardTile(boardTileX, boardTileY, x, y) {
     var coords = getTopLeftBoardTileCoords(boardTileX, boardTileY);
-    return x >= coords.x && x <= coords.x + tileSize && y >= coords.y && y <= coords.y + tileSize;
+    return x >= coords.x && x <= coords.x + game.tileSize && y >= coords.y && y <= coords.y + game.tileSize;
 }
 
 function placeTileOnBoard(tile, boardTileX, boardTileY) {
     tile.inHand = false;
     tile.boardTileX = boardTileX;
     tile.boardTileY = boardTileY;
-    board.hash[boardHashKey(tile)] = tile;
-    tilesOnBoard.push(tile);
-    tile.container.splice(tile.container.indexOf(tile), 1);
-    tile.container = tilesOnBoard;
-    lastTilePlaced = tile;
-    tile.size = tileSize;
+    game.board.hash[boardHashKey(tile)] = tile;
+    game.tilesOnBoard.push(tile);
+    removeTileFromContainer(tile);
+    tile.container = {"type":"board"};
+    game.lastTilePlaced = tile;
+    tile.size = game.tileSize;
     var coords = getTopLeftBoardTileCoords(tile.boardTileX, tile.boardTileY);
     tile.x = coords.x;
     tile.y = coords.y;
+    game.board.tilesPlaced ++;
+    console.log('placeTileOnBoard');
+    console.log(game);
+    if(game.board.tilesPlaced === game.board.totalTilesInGame) {
+    	var score = graphAndScore(game.allTiles);
+    	consol.log(score);
+    }
+}
+
+function removeTileFromContainer(tile) {
+	var containerInfo = tile.container;
+	var container = null;
+	if(containerInfo.type === "hand") {
+		container = game.hands[containerInfo.id];
+	} else if(containerInfo.type === "board") {
+		container = game.tilesOnBoard;
+	} else {
+		throw "invalid container type " + containerInfo.type;
+	}
+	
+    container.splice(container.indexOf(tile), 1);
 }
 
 function boardHashKey(tile) {
@@ -142,19 +168,19 @@ function boardHashKeyCoords(boardTileX, boardTileY) {
 }
 
 function getTopLeftBoardTileCoords(boardTileX, boardTileY) {
-    return {'x': board.left + board.translateX + board.width / 2 + (boardTileX - .5) * tileSize, 'y': board.top + board.translateY + board.height / 2 + (boardTileY - .5) * tileSize};
+    return {'x': game.board.left + game.board.translateX + game.board.width / 2 + (boardTileX - .5) * game.tileSize, 'y': game.board.top + game.board.translateY + game.board.height / 2 + (boardTileY - .5) * game.tileSize};
 }
 
-initializeHand(context, hands[0], 5, 5, 70, 4);
-initializeHand(context, hands[1], canvasWidth - 5 - 70, 5, 70, 4);
-drawAllTiles(context, allTiles);
+initializeHand(context, game.hands[0], 0, 5, 5, 70, 4);
+initializeHand(context, game.hands[1], 1, canvasWidth - 5 - 70, 5, 70, 4);
+drawAllTiles(context, game.allTiles);
 
 $('.js-canvas').on('click', function (event) {
     var x = event.pageX - $(this).offset().left;
     var y = event.pageY - $(this).offset().top;
-    for (var i = 0; i < allTiles.length; i++) {
-        if (pointInTile(allTiles[i], x, y)) {
-            onClickTile(allTiles[i]);
+    for (var i = 0; i < game.allTiles.length; i++) {
+        if (pointInTile(game.allTiles[i], x, y)) {
+            onClickTile(game.allTiles[i]);
             return;
         }
     }
@@ -172,19 +198,18 @@ var legalPositionsWithRotation = [];
 // The currently selected tile will be placed when a player clicks on a legal position.
 // It is also rendered differently to stand out.
 var selectedTile;
-var lastTilePlaced;
 function onClickTile(tile) {
     if (tile === selectedTile) {
         selectedTile.colors = rotateRight(selectedTile.colors);
     }
-    if (tile.container === hands[turn]) {
-        if (tilesOnBoard.length === 0) {
+    if (tile.container.type === "hand" && tile.container.id == game.turn) {
+        if (game.tilesOnBoard.length === 0) {
             placeTileOnBoard(tile, 0, 0);
-            turn ^= 1;
-            drawAllTiles(context, allTiles);
+            game.turn ^= 1;
+            drawAllTiles(context, game.allTiles);
         } else {
             selectedTile = tile;
-            drawAllTiles(context, allTiles);
+            drawAllTiles(context, game.allTiles);
             var rotatePiece = false;
             legalPositions = findLegalPositions(tile, rotatePiece);
             legalPositionsWithRotation = findLegalPositions(tile, rotatePiece = true);
@@ -201,8 +226,8 @@ function onClickLegalPosition(legalPosition) {
             selectedTile = null;
             legalPositions = [];
             legalPositionsWithRotation = [];
-            turn ^= 1;
-            drawAllTiles(context, allTiles);
+            game.turn ^= 1;
+            drawAllTiles(context, game.allTiles);
             return;
      //   }
    //     selectedTile.colors = rotateRight(selectedTile.colors);
@@ -213,14 +238,14 @@ function onClickLegalPosition(legalPosition) {
 }
 function findLegalPositions(tile, rotatePiece) {
     var candidateSpaces = {}
-    for (var i = 0; i < tilesOnBoard.length; i++) {
-        var placedTile = tilesOnBoard[i];
+    for (var i = 0; i < game.tilesOnBoard.length; i++) {
+        var placedTile = game.tilesOnBoard[i];
         for (var dy = -1; dy <= 1; dy++) {
             for (var dx = -1; dx <= 1; dx++) {
                 var tx = placedTile.boardTileX + dx;
                 var ty = placedTile.boardTileY + dy;
                 var key = boardHashKeyCoords(tx, ty);
-                if (!ifdefor(board.hash[key])) {
+                if (!ifdefor(game.board.hash[key])) {
                     var candidateSpace = ifdefor(candidateSpaces[key], {'boardTileX': tx, 'boardTileY': ty, 'neighbors': 0});
                     candidateSpace.neighbors++;
                     if (dx === 0 || dy === 0) {
@@ -231,7 +256,7 @@ function findLegalPositions(tile, rotatePiece) {
                         var colorOffset = placedTile.colors[placedPositionOffset];
                         candidateSpace.constraints = ifdefor(candidateSpace.constraints, [-1,-1,-1,-1]);
                         candidateSpace.constraints[constrainedPositionOffset] = colorOffset;
-                        candidateSpace.byLastTilePlaced = ifdefor(candidateSpace.byLastTilePlaced, false) || lastTilePlaced === placedTile;
+                        candidateSpace.byLastTilePlaced = ifdefor(candidateSpace.byLastTilePlaced, false) || game.lastTilePlaced === placedTile;
                     }
                     candidateSpaces[key] = candidateSpace;
                 }
@@ -242,7 +267,7 @@ function findLegalPositions(tile, rotatePiece) {
     var legalPositionsByLastTilePlaced = [];
     $.each(candidateSpaces, function (hashKey, candidateSpace) {
         var colorConstraints = candidateSpace.constraints;
-        if (!colorConstraints || candidateSpace.neighbors < Math.min(2, tilesOnBoard.length)) {
+        if (!colorConstraints || candidateSpace.neighbors < Math.min(2, game.tilesOnBoard.length)) {
             return;
         }
         // copy so we can rotate without changing the original.
@@ -280,25 +305,69 @@ function tileColorsMatchConstraintColors(tileColors, colorConstraints) {
     return true;
 }
 
+/**
+ * Run repeatedly to shift the display of the board from old position to
+ * new center.
+ * Current position: game.board.translateX, game.board.translateY
+ * New (target) position: game.board.targetTranslateX, game.board.targetTranslateY
+ * @author brewer
+ */
 function gameLoop() {
-    if (board.translateX !== board.targetTranslateX || board.translateY !== board.targetTranslateY) {
-        board.translateX = (board.translateX * 3 + board.targetTranslateX) / 4;
-        board.translateY = (board.translateY * 3 + board.targetTranslateY) / 4;
-        if (Math.abs(board.translateX - board.targetTranslateX) < 1) {
-            board.translateX = board.targetTranslateX;
+    if (game.board.translateX !== game.board.targetTranslateX || game.board.translateY !== game.board.targetTranslateY) {
+        game.board.translateX = (game.board.translateX * 3 + game.board.targetTranslateX) / 4;
+        game.board.translateY = (game.board.translateY * 3 + game.board.targetTranslateY) / 4;
+        if (Math.abs(game.board.translateX - game.board.targetTranslateX) < 1) {
+            game.board.translateX = game.board.targetTranslateX;
         }
-        if (Math.abs(board.translateY - board.targetTranslateY) < 1) {
-            board.translateY = board.targetTranslateY;
+        if (Math.abs(game.board.translateY - game.board.targetTranslateY) < 1) {
+            game.board.translateY = game.board.targetTranslateY;
         }
-        for (var i = 0; i < tilesOnBoard.length; i++) {
-            var tile = tilesOnBoard[i];
+
+        for (var i = 0; i < game.tilesOnBoard.length; i++) {
+            var tile = game.tilesOnBoard[i];
             var coords = getTopLeftBoardTileCoords(tile.boardTileX, tile.boardTileY);
             tile.x = coords.x;
             tile.y = coords.y;
         }
-        drawAllTiles(context, allTiles);
+        drawAllTiles(context, game.allTiles);
         drawLegalMoves(context, legalPositions, legalPositionsWithRotation);
     }
 }
 
+/**
+ * Run the gameLoop every 30 milliseconds. This smoothly  re-centers the display of the board.
+ */
 setInterval(gameLoop, 30);
+
+function saveGame() {
+	console.log(game);
+	var gameJSONString = JSON.stringify(game);
+	 window.localStorage.setItem("gameState", gameJSONString); 
+}
+
+function loadGame() {
+	var gameJSONString = window.localStorage.getItem("gameState"); 
+	game = JSON.parse(gameJSONString);
+	// the tiles in allTiles are now different objects from the tiles
+	// in hands and tilesOnBoard.
+	// Re-populate 'hands' and 'tilesOnBoard' from allTiles.
+	game.hands = [[],[]];
+	game.tilesOnBoard = [];
+	for(var tileKey in game.allTiles) {
+		var tile = game.allTiles[tileKey];
+		if(tile.container.type === "board") {
+			game.tilesOnBoard.push(tile);
+		} else if(tile.container.type === "hand") {
+			game.hands[tile.container.id].push(tile);
+		} else {
+			throw "unknown tile container type " + tile.container.type;
+		}
+	}
+	console.log(game);
+	drawAllTiles(context, game.allTiles);
+    if(game.board.tilesPlaced === game.board.totalTilesInGame) {
+    	var score = graphAndScore(game.allTiles);
+    	console.log(score);
+    }
+
+}
