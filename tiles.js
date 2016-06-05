@@ -1,6 +1,11 @@
 var game = {
+		"state":"build",
 		"allTiles":[],
 		"hands":[],
+		"replacements":[],
+		"irreplaceables":[],
+		"mismatches":[],
+		"resolvePositions":[],
 		"tilesOnBoard":[],
 		"turn":0,
 		"board":{},
