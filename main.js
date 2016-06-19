@@ -130,7 +130,7 @@ function centerBoard() {
     game.board.targetTranslateY = game.board.translateY - (bottom + top) / 2 + (game.board.top + game.board.height / 2);
 }
 
-function edgeNeighborTile(tile, edge) {
+function edgeNeighborPosition(boardPosition, edge) {
 	var dx = 0;
 	var dy = 0;
 	if(edge === 0) {
@@ -145,17 +145,30 @@ function edgeNeighborTile(tile, edge) {
 		throw "invalid edge value: " + edge;
 	}
 	
-    var tx = tile.boardTileX + dx;
-    var ty = tile.boardTileY + dy;
-    var key = boardHashKeyCoords(tx, ty);
-    var neighborTileID = game.board.hash[key].id;
-    for(var ofst = 0;ofst < game.allTiles.length;ofst++) {
-    	var neighborTile = game.allTiles[ofst];
-    	if(neighborTile.id === neighborTileID) {
-    		return neighborTile;
-    	}
-    }
-    return null;
+    var tx = boardPosition.boardTileX + dx;
+    var ty = boardPosition.boardTileY + dy;
+    return {"boardTileX":tx, "boardTileY":ty};
+}
+
+function edgeNeighborTile(tile, edge) {
+
+	var position = edgeNeighborPosition(tile, edge);
+
+	var tx = position.boardTileX;
+	var ty = position.boardTileY;
+
+	var key = boardHashKeyCoords(tx, ty);
+	var neighborTile = game.board.hash[key];
+	if(neighborTile != undefined) {
+		var neighborTileID = neighborTile.id;
+		for(var ofst = 0;ofst < game.allTiles.length;ofst++) {
+			var neighborTile = game.allTiles[ofst];
+			if(neighborTile.id === neighborTileID) {
+				return neighborTile;
+			}
+		}
+	}
+	return null;
 }
 
 function pointInTile(tile, x, y) {
@@ -229,6 +242,8 @@ function placeTileInHand(tile) {
     tile.boardTileX = 0;
     tile.boardTileY = 0;
     tile.container = {"type":"hand", "id":game.turn};
+    console.log("placeTileInHand: game");
+    console.log(game);
     game.hands[game.turn].push(tile);
 }
 
@@ -255,8 +270,6 @@ function placeTileOnBoard(tile, boardTileX, boardTileY) {
 	var coords = getTopLeftBoardTileCoords(tile.boardTileX, tile.boardTileY);
 	tile.x = coords.x;
 	tile.y = coords.y;
-	adjustGameState();
-	conditionallyScoreGame();
 }
 
 function adjustGameState() {
@@ -267,6 +280,8 @@ function adjustGameState() {
 		game.transformTurn = game.turn;
 		game.state = "transform"; // next transform player should select a pair of tiles to replace.
 		game.lastTilePlaced = null;
+
+		conditionallyScoreGame();
 	} else if(game.state === "transform" && game.replacements.length > 0) {
 		game.state = "replace"; // current transform/resolve player should move replacement tiles to transform positions.
 	} else if(game.state === "replace" && game.replacements.length === 0) {
@@ -275,40 +290,45 @@ function adjustGameState() {
 	} else if(game.state === "rebuild" && game.board.tilesPlaced === game.board.totalTilesInGame) {
 		if(game.mismatches.length > 0) {
 			game.state = "resolve"; // next resolve player should select a board-color-constraint-violating tile to resolve (or 'fix').
-			game.turn = game.turn + 1 % 2;
+			game.turn = (game.turn + 1) % 2;
 			setupResolveState();
 		} else {
 			game.state = "transform"; // next transform player should start a transformation.
-			game.transformTurn = game.transformTurn + 1 % 2;
+			game.transformTurn = (game.transformTurn + 1) % 2;
 			game.turn = game.transformTurn;
+			game.replacements = []; // ensure replacements are 'empty'.
+			conditionallyScoreGame();
 		}
 	} else if(game.state === "resolve" && game.replacements.length > 0) {
 		game.state = "replace"; // current resolve player should move replacement tile(s) to violation positions.
 	}
-	
+	$('.game-state').html(game.state);
 	console.log("adjust game state from: " + inputState + " to: " + game.state);
 }
 
 function setupResolveState() {
 	var finalMismatchPositions = [];
+	var resolvePositions = [];
+	
 	for(var ofst = 0;ofst < game.resolvePositions.length;ofst ++) {
 		var resolvePosition = game.resolvePositions[ofst];
 		// override constraints[i] with forcedColors[i] if  forcedColors[i] != -1.
 		for(var forcedOfst = 0;forcedOfst < 4;forcedOfst++) {
-			var resolveColor = resolvedPosition.forcedColors[forcedOfst];
-			if(resolvedColor != -1) {
+			var resolveColor = resolvePosition.forcedColors[forcedOfst];
+			if(resolveColor != -1) {
 				resolvePosition.constraints[forcedOfst] = resolveColor;
 			}
 		}
 		resolvePositions.push(resolvePosition);
 	}
 	
-	legalPositionsWithRotation = resolvedPositions;
+	legalPositionsWithRotation = resolvePosition;
 	
 	for(var ofst = 0;ofst < game.mismatches.length;ofst ++) {
 		var mismatchedTile = game.mismatches[ofst];
 		placeTileInHand(mismatchedTile);
 	}
+	initializePlayerHand(context, game.turn);
 }
 
 function setupRebuildState() {
@@ -330,6 +350,7 @@ function setupRebuildState() {
 					"minimumMismatch":irreplaceable.minimumMismatch};
 			legalPositionsWithRotation.push(legalPosition);
 		}
+		game.irreplaceables = [];
 	}
 	
 	console.log("setupRebuildState: legalPositionsWithRotation");
@@ -412,10 +433,11 @@ function onClickTile(tile, clickX, clickY) {
     if (tile === selectedTile) {
         selectedTile.colors = rotateRight(selectedTile.colors);
     }
+    
     if (game.state === "build" && tile.container.type === "hand" && tile.container.id == game.turn) {
         if (game.tilesOnBoard.length === 0) {
             placeTileOnBoard(tile, 0, 0);
-            game.turn ^= 1;
+            game.turn = (game.turn + 1) % 2;
             drawAllTiles(context, game.allTiles);
         } else {
             selectedTile = tile;
@@ -430,7 +452,13 @@ function onClickTile(tile, clickX, clickY) {
     	console.log("rebuild game");
     	console.log(game);
     	selectedTile = tile;
-    	legalPositions = findViolationPositions(tile);
+    	if(legalPositionsWithRotation.length > 0) {
+    		// one or more violations to resolve.
+    		legalPositions = findViolationPositions(tile);
+    	} else {
+            legalPositions = findLegalPositions(tile, rotatePiece);
+            legalPositionsWithRotation = findLegalPositions(tile, rotatePiece = true);    		
+    	}
     	drawAllTiles(context, game.allTiles);
     	drawLegalMoves(context, legalPositions, legalPositionsWithRotation);
 
@@ -531,14 +559,13 @@ function onClickTileTransform(tile, clickX, clickY) {
 }
 
 function onClickLegalPosition(legalPosition) {
-	console.log("onClickLegalPosition: legalPosition");
-	console.log(legalPosition);
+	console.log("onClickLegalPosition: game");
+	console.log(game);
 	
 	var colorConstraints = legalPosition.constraints;
 	placeTileOnBoard(selectedTile, legalPosition.boardTileX, legalPosition.boardTileY);
+	
 	if(game.state === "replace") {
-		console.log("onClickLegalPosition: legal with rotation (before) = ");
-		console.log(legalPositionsWithRotation);
 		var remainingLegalPositionsWithRotation = [];
 		for(var ofst = 0;ofst < legalPositionsWithRotation.length;ofst++) {
 			var checkLegalPosition = legalPositionsWithRotation[ofst];
@@ -560,9 +587,16 @@ function onClickLegalPosition(legalPosition) {
 
 		adjustGameState(); // may transition to 'transform', 'resolve', or stay in 'rebuild'.
 	} else {
+		console.log("onClickLegalPosition: game state (not replace nor rebuild) = " + game.state);
+		console.log(game);
 		legalPositions = [];
 		legalPositionsWithRotation = [];
-		game.turn ^= 1;
+		game.turn = (game.turn + 1) % 2;
+		if(game.state === "transform") {
+			game.transformTurn = game.turn;
+		} else {
+			adjustGameState(); // may transition to 'transform'.
+		}
 	}
 	selectedTile = null;
 	drawAllTiles(context, game.allTiles);
@@ -617,7 +651,7 @@ function findNeighborColorViolations(tile, legalPosition) {
         	var localMismatchedPosition = {
             		"boardTileX":mismatchedTile.boardTileX,
             		"boardTileY":mismatchedTile.boardTileY,
-            		"constraints":mismatchedTile.colors,
+            		"constraints":mismatchedTile.colors.slice(), // make a copy of 'colors'
             		"forcedColors":[-1,-1,-1,-1]};
         	if(mismatchedPosition === undefined) {
         		mismatchedPosition = localMismatchedPosition;
@@ -792,6 +826,10 @@ function findLegalPositions(tile, rotatePiece) {
             }
         }
     }
+    
+    console.log("findLegalPositions: candidateSpaces");
+    console.log(candidateSpaces);
+    
     var legalPositions = [];
     var legalPositionsByLastTilePlaced = [];
     $.each(candidateSpaces, function (hashKey, candidateSpace) {
@@ -799,6 +837,37 @@ function findLegalPositions(tile, rotatePiece) {
         if (!colorConstraints || candidateSpace.neighbors < Math.min(2, game.tilesOnBoard.length)) {
             return;
         }
+        
+        // check compactness
+    	var spaceWouldCreateHole = false;
+    	for(var constraintOfst = 0;constraintOfst < colorConstraints.length;constraintOfst++) {
+    		var constraintColor = colorConstraints[constraintOfst];
+    		if(constraintColor === -1) {
+    			// -1 implies there is no tile on edge/constraint at constraintOfst.
+    			// Check if there is a tile the next space beyond.
+    			// If there is, then placing in this location would create
+    			// a shape violation 'hole' in the board.
+    			var firstNeighborPosition = edgeNeighborPosition(candidateSpace, constraintOfst);
+    			console.log("firstNeighborPosition:");
+    			console.log(firstNeighborPosition);
+    			
+    			var secondNeighborTile = edgeNeighborTile(firstNeighborPosition, constraintOfst);
+    			if(secondNeighborTile != null) {
+    				spaceWouldCreateHole = true;
+    				console.log("SpaceWouldCreateHole: [candidate, firstNeighborPosition, secondNeighborTile] " );
+    				console.log([candidateSpace,firstNeighborPosition,secondNeighborTile]);
+    				break;
+    			}
+    		}
+    	}
+    	
+    	console.log("findLegalPositions: spaceWouldCreateHole " + spaceWouldCreateHole);
+    	console.log(candidateSpace);
+    	
+    	if(spaceWouldCreateHole) {
+            return;
+    	}
+
         // copy so we can rotate without changing the original.
         var rotatedColors = tile.colors.slice();
         for (var rotationAttempts = 0; rotationAttempts < 4; rotationAttempts++) {
