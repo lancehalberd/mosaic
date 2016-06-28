@@ -10,7 +10,7 @@ var game = {
 		"turn":0,
 		"board":{},
 		"lastTilePlaced":{},
-		"tileSize":100
+		"tileSize":75
 }
 
 function graphAndScore(gameTiles) {
