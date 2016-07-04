@@ -41,8 +41,8 @@ function drawAllTiles(context, allTiles) {
         for(var ofst = 0;ofst < game.replacements.length;ofst++) {
         	var replacement = game.replacements[ofst];
         	if(replacement.id === tile.id) {
-            	console.log("replacement tile");
-            	console.log(replacement);
+//            	console.log("replacement tile");
+//            	console.log(replacement);
             	drawReplacementTileMark(context, tile);
         	}
         }
@@ -98,12 +98,7 @@ function drawReplacementTileMark(context, tile) {
 	context.restore();
 }
 
-function drawLegalMoves(context, legalPositions, legalPositionsWithRotation) {
-	console.log("legal");
-	console.log(legalPositions);
-	console.log("legal with rotation");
-	console.log(legalPositionsWithRotation);
-	
+function drawLegalMoves(context, legalPositions, legalPositionsWithRotation) {	
     context.save();
     context.beginPath();
     context.fillStyle = highlightColors[game.turn];
@@ -112,8 +107,6 @@ function drawLegalMoves(context, legalPositions, legalPositionsWithRotation) {
     context.globalAlpha = .8;
     for (var i = 0; i < legalPositionsWithRotation.length; i++) {
         var tileCoords = getTopLeftBoardTileCoords(legalPositionsWithRotation[i].boardTileX, legalPositionsWithRotation[i].boardTileY);
-        console.log("tileCoords");
-        console.log(tileCoords);
         
         context.rect(tileCoords.x, tileCoords.y, game.tileSize, game.tileSize);
         context.stroke();
